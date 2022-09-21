@@ -12,8 +12,7 @@ namespace UserService.Helpers
     public class StandardHelper : IStandardHelper
     {
         private IOptions<AppSettings> _appSettings;
-        private IHttpContextAccessor _httpContextAccessor;
-        private IMemoryCache _memoryCache;
+        private IHttpContextAccessor _httpContextAccessor;   
         private readonly int _daysToExpire = 7;
 
         public int DaysToExpire
@@ -21,11 +20,10 @@ namespace UserService.Helpers
             get { return _daysToExpire; }
         }
 
-        public StandardHelper(IOptions<AppSettings> appSettings, IHttpContextAccessor httpContextAccessor, IMemoryCache memoryCache)
+        public StandardHelper(IOptions<AppSettings> appSettings, IHttpContextAccessor httpContextAccessor)
         {
             _appSettings = appSettings;
-            _httpContextAccessor = httpContextAccessor;
-            _memoryCache = memoryCache;
+            _httpContextAccessor = httpContextAccessor;       
         }
 
         public string GetNewId
@@ -47,16 +45,7 @@ namespace UserService.Helpers
             { 
                 return _appSettings.Value; 
             } 
-        }
-
-        public string GetTokenFromIdentity()
-        {
-            string jwt = _httpContextAccessor.HttpContext.Request.Headers?["X-Authorization"].ToString();
-            string value = string.Empty;
-
-            value = _memoryCache.Get<String>(jwt);
-            return value;
-        }
+        }        
     }
 
     public interface IStandardHelper
@@ -64,9 +53,7 @@ namespace UserService.Helpers
         int DaysToExpire { get; }
         string GetNewId { get; }
         DateTime GetDateTime { get; }
-        AppSettings AppSettings { get;  }
-        string GetTokenFromIdentity();
-    
+        AppSettings AppSettings { get;  }   
     }
     
 }

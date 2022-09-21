@@ -10,7 +10,7 @@ namespace UserService.Misc
 {
     public class TokenAuthorization : ITokenAuthorization
     {
-        private IIdentityRepo _identityRepo;      
+        private IIdentityRepo _identityRepo;    
 
         public TokenAuthorization(IIdentityRepo identityRepo)
         {
@@ -59,14 +59,17 @@ namespace UserService.Misc
                 return response;
             }
 
+            string[] values = valTokenResponse.Value.Split('.');
+            string token = values[0];
+            string userId = values[1];
+
             // if everything was successfull
             response.Success = true;
             response.Message = "Success";
             response.MessageCode = ApiMessageCodes.Success;
-            response.Value = valTokenResponse.Value;
+            response.Value = new { token = token, userId = userId };
 
             return response;
-
         }
     }
 
