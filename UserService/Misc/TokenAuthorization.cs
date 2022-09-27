@@ -67,7 +67,7 @@ namespace UserService.Misc
             response.Success = true;
             response.Message = "Success";
             response.MessageCode = ApiMessageCodes.Success;
-            response.Value = new { token = token, userId = userId };
+            response.Value = new UserTokenValue { Token = token, UserId = userId };
 
             return response;
         }

@@ -9,6 +9,7 @@ using UserService.Enums;
 using UserService.Helpers;
 using UserService.Repos;
 using Microsoft.Extensions.Caching.Memory;
+using UserService.ViewModels.Internal;
 
 namespace UserService.Controllers
 {
@@ -46,9 +47,9 @@ namespace UserService.Controllers
 
             //if token is empty then something went wrong, return error
             if (authResponse.Success == false) return new StandardResponseObjectResult(response, StatusCodes.Status401Unauthorized);
+            UserTokenValue userTokenValue = (UserTokenValue)authResponse.Value;
                           
-            return new StandardResponseObjectResult(response, StatusCodes.Status200OK);
-                   
+            return new StandardResponseObjectResult(response, StatusCodes.Status200OK);                   
         }
 
         //[HttpPost]

@@ -28,11 +28,13 @@ namespace UserService.Repos
             _storageContainerName = "profile-avatars";
     }
 
-        //public User Fetch(string id)
-        //{
-        //    Uri accountUri = new Uri(this._storageConnectionString);
-        //    BlobContainerClient container = new BlobContainerClient(_storageConnectionString, _storageContainerName);
-        //}
+        public string Fetch(string id)
+        {
+            Uri accountUri = new Uri(this._storageConnectionString);
+            BlobContainerClient container = new BlobContainerClient(_storageConnectionString, _storageContainerName);
+
+            return "";
+        }
 
         public void Store(string id)
         {
