@@ -15,6 +15,7 @@
         AlreadyExists = 406,
         NullValue = 407,
         NotOkay = 408,
+        BlogStorageFailure = 409,
         Failed = 600,
         InvalidParamValue = 601,
         Throttled = 602,

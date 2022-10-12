@@ -10,6 +10,7 @@ using UserService.Helpers;
 using UserService.Repos;
 using Microsoft.Extensions.Caching.Memory;
 using UserService.ViewModels.Internal;
+using System.Reflection.PortableExecutable;
 
 namespace UserService.Controllers
 {
@@ -48,29 +49,44 @@ namespace UserService.Controllers
             //if token is empty then something went wrong, return error
             if (authResponse.Success == false) return new StandardResponseObjectResult(response, StatusCodes.Status401Unauthorized);
             UserTokenValue userTokenValue = (UserTokenValue)authResponse.Value;
-                          
+
+            _avatarRepo.Fetch(userTokenValue.UserId.ToLower());
+
             return new StandardResponseObjectResult(response, StatusCodes.Status200OK);                   
         }
 
-        //[HttpPost]
-        //[Route("avatar")]
-        //public IActionResult Post()
-        //{
-        //    ApiResponse response = new ApiResponse();
+        [HttpPost]
+        [Route("avatar")]
+        [AllowAnonymous]
+        public IActionResult Post()
+        {
+            ApiResponse response = new ApiResponse()
+            {
+                Success = false,
+                MessageCode = ApiMessageCodes.AuthFailed
+            };
 
-        //    string token = User != null ? _helper.GetTokenFromIdentity() : string.Empty;
+            string jwt = HttpContext.Request.Headers?["X-Authorization"].ToString();
 
-        //    //if token is empty then something went wrong, return error
-        //    if (String.IsNullOrEmpty(token))
-        //    {
-        //        response.MessageCode = ApiMessageCodes.NotFound;
-        //        response.Message = "Error getting token from identity";
+            // go validate the x-authorization header value
+            ApiResponse authResponse = _tokenAuthorization.ValidateToken(jwt);
 
-        //        return new StandardResponseObjectResult(response, StatusCodes.Status400BadRequest);
-        //    }           
+            //if token is empty then something went wrong, return error
+            if (authResponse.Success == false) return new StandardResponseObjectResult(response, StatusCodes.Status401Unauthorized);
+            UserTokenValue userTokenValue = (UserTokenValue)authResponse.Value;
 
-        //    return new StandardResponseObjectResult(response, StatusCodes.Status200OK);
+            string avatar_uri = _avatarRepo.Store(userTokenValue.UserId.ToLower());
 
-        //}
+            if (string.IsNullOrEmpty(avatar_uri)) {
+                response.Message = "Error uploading and getting URI";
+                response.MessageCode = ApiMessageCodes.BlogStorageFailure;
+
+                return new StandardResponseObjectResult(response, StatusCodes.Status200OK);
+            }
+           
+            response = _avatarRepo.Update(avatar_uri, jwt);
+
+            return new StandardResponseObjectResult(response, StatusCodes.Status200OK);
+        }
     }
 }
