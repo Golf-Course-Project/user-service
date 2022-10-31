@@ -66,9 +66,11 @@ namespace IdentityService
             IConfigurationSection appSettingsSection = _configuration.GetSection("AppSettings");
             services.Configure<AppSettings>(appSettingsSection);                        
             AppSettings appSettings = appSettingsSection.Get<AppSettings>();
-            
+
             // look for connection string from azure app settings first, if empty, then pull from appsettings.json
-            //string idenityConnectionString = string.IsNullOrEmpty(_configuration.GetConnectionString("StorageConnectionString")) ? _configuration.GetSection("AppSettings").Get<AppSettings>().StorageConnectionString : _configuration.GetConnectionString("StorageConnectionString");
+            string idenityConnectionString = string.IsNullOrEmpty(_configuration.GetConnectionString("IdentityServiceConnectionString")) ? _configuration.GetSection("AppSettings").Get<AppSettings>().IdentityServiceConnectionString : _configuration.GetConnectionString("IdentityServiceConnectionString");
+
+            services.AddDbContext<IdentityDataContext>(options => options.UseSqlServer(idenityConnectionString));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

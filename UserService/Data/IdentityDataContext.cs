@@ -14,8 +14,7 @@ namespace UserService.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             //base.OnModelCreating(builder);
-            modelBuilder.Entity<User>().ToTable("Users");
-           
+            modelBuilder.Entity<User>().ToTable("Users");           
         }
 
         public DbSet<User> Users { get; set; }       

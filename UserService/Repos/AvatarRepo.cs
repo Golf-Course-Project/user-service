@@ -19,6 +19,10 @@ using System.Net.Http;
 using UserService.ViewModels.Internal;
 using System.Text;
 using UserService.Misc;
+using UserService.ViewModels.Identity;
+using System.Threading.Tasks;
+using System.IdentityModel.Tokens.Jwt;
+using UserService.Repos.Identity;
 
 namespace UserService.Repos
 {
@@ -27,23 +31,19 @@ namespace UserService.Repos
         private IStandardHelper _standardHelper;
         private string _storageConnectionString;
         private string _storageContainerName;
-        private string _identityServiceUrl;
+        private IIdentityRepo _identityRepo;
 
-        public AvatarRepo(IStandardHelper standardHelper)
+        public AvatarRepo(IIdentityRepo identityRepo, IStandardHelper standardHelper)
         {
+            _identityRepo = identityRepo;
             _standardHelper = standardHelper;
             _storageConnectionString = _standardHelper.AppSettings.StorageConnectionString;
-            _storageContainerName = "profile-avatars";
-            _identityServiceUrl = _standardHelper.AppSettings.IdentityService;
-    }
+            _storageContainerName = "profile-avatars";           
+        }
 
         public string Fetch(string id)
-        {           
-            BlobContainerClient container = new BlobContainerClient(_storageConnectionString, _storageContainerName);
-
-            var results = container.GetBlobsAsync(BlobTraits.None, BlobStates.None, id);
-
-            return "";
+        {
+           return _identityRepo.Fetch(id).Avatar_Url;
         }
 
         public string Store(string id)
@@ -63,45 +63,6 @@ namespace UserService.Repos
             if (props.ContentLength > 0) return blob.Uri.ToString();
 
             return null;          
-        }
-
-        public ApiResponse Update(string uri, string jwtHeader)
-        {
-            ApiResponse result = new ApiResponse() { Success = false };
-
-            if (string.IsNullOrEmpty(jwtHeader))
-            {
-                result.Message = "JWT cannot be null or empty";
-                return result;
-            }
-
-            if (string.IsNullOrEmpty(uri))            {
-                result.Message = "Uri cannot be null or empty";
-
-                return result;
-            }
-
-            // split the header token to get Bearer and token value
-            string[] splitToken = jwtHeader.Split(' ');
-          
-            using (var client = new HttpClient())
-            {
-                client.BaseAddress = new Uri(@"https://" + _identityServiceUrl);
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(splitToken[0], splitToken[1]);
-
-                var data = new StringContent(uri, Encoding.UTF8, "application/json");
-
-                HttpResponseMessage response = client.PatchAsync("/api/users/update/avatarurl", data).Result;
-
-                string json = response.Content.ReadAsStringAsync().Result;
-                result = JsonConvert.DeserializeObject<ApiResponse>(json);
-
-                client.Dispose();
-
-                return result;
-            }
         }
 
         public void Delete(string id)
@@ -134,8 +95,7 @@ namespace UserService.Repos
     public interface IAvatarRepo
     {
         string Fetch(string id);        
-        string Store(string id);
-        ApiResponse Update(string uri, string jwt);
+        string Store(string id);    
         void Delete(string id);
     }
 }

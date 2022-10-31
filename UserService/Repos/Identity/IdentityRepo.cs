@@ -17,12 +17,49 @@ namespace UserService.Repos.Identity
     public class IdentityRepo : IDisposable, IIdentityRepo
     {
         private IStandardHelper _standardHelper;
-        private string _identityServiceUrl;       
+        private string _identityServiceUrl;
+        private IdentityDataContext _dbContext;
 
-        public IdentityRepo(IStandardHelper standardHelper)
+        public IdentityRepo(IdentityDataContext context, IStandardHelper standardHelper)
         {
+            _dbContext = context;
             _standardHelper = standardHelper;
             _identityServiceUrl = _standardHelper.AppSettings.IdentityService;           
+        }
+        public User Fetch(string id)
+        {
+            User item;
+
+            try
+            {
+                item = _dbContext.Users.Where(x => x.Id == id).First<User>();
+            }
+            catch (InvalidOperationException)
+            {
+                item = null;
+            }
+
+            return item;
+        }
+
+
+        public void Update(User user, string fields)
+        {
+            _dbContext.Users.Attach(user);
+
+            EntityEntry entry = this._dbContext.Entry(user);
+
+            var split = fields.Split(',');
+
+            for (var i = 0; i < split.Count(); ++i)
+            {
+                entry.Property(split[i].ToString().Trim()).IsModified = true;
+            }
+        }
+
+        public int SaveChanges()
+        {
+            return this._dbContext.SaveChanges();
         }
 
         public ValidateTokenResponse ValidateJwt(string jwt)
@@ -77,6 +114,9 @@ namespace UserService.Repos.Identity
 
     public interface IIdentityRepo
     {
+        User Fetch(string id);
+        void Update(User user, string fields);
+        int SaveChanges();
         ValidateTokenResponse ValidateJwt(string jwt);   
     }
 }
