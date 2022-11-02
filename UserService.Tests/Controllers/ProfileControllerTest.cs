@@ -19,13 +19,15 @@ using Azure;
 using Newtonsoft.Json.Linq;
 using UserService.Entities.Identity;
 using UserService.Enums;
+using UserService.Repos.Identity;
 
 namespace UserService.Tests.Controllers
 {
     [TestClass]
     public class ProfileControllerTest
     {
-        private Mock<IAvatarRepo> _mockAvatarRepo;        
+        private Mock<IAvatarRepo> _mockAvatarRepo;
+        private Mock<IIdentityRepo> _mockIdentityRepo;
         private Mock<IStandardHelper> _mockHelper;
         private Mock<ITokenAuthorization> _mockTokenAuthorization;
 
@@ -39,11 +41,12 @@ namespace UserService.Tests.Controllers
         public void TestInitialize()
         {
             _mockAvatarRepo = new Mock<IAvatarRepo>();
+            _mockIdentityRepo = new Mock<IIdentityRepo>();
             _mockHelper = new Mock<IStandardHelper>();
             _mockTokenAuthorization = new Mock<ITokenAuthorization>();
                        
             // arrange
-            _controller = new ProfileController(_mockAvatarRepo.Object, _mockHelper.Object, _mockTokenAuthorization.Object);
+            _controller = new ProfileController(_mockAvatarRepo.Object, _mockIdentityRepo.Object, _mockHelper.Object, _mockTokenAuthorization.Object);
            
             DefaultHttpContext httpContext = new DefaultHttpContext();
             httpContext.Request.Headers["X-Authorization"] = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1bmlxdWVfbmFtZSI6ImY3ZmQ0YjQwLWNhZjQtNDU2Ny1iODg5LTE2MTlhYWQxNDM0MSIsImVtYWlsIjoiZGFuaGVsbGVtQG91dGxvb2suY29tIiwicm9sZSI6InNpdGUgYWRtaW4iLCJ0b2tlbiI6IjQzMDE2MDY3LTBlMDItNGExYS1iZGE5LTdlOTc1Njc0NWUzZCIsIm5iZiI6MTY2Mzc2ODE3NSwiZXhwIjoxNjY2MzYwMTc1LCJpYXQiOjE2NjM3NjgxNzV9.QqVMCXj7MOFM1hdEYWyytix2TKzAlfVx0GQlP-8KbFU";
@@ -73,10 +76,10 @@ namespace UserService.Tests.Controllers
             string url = "https://alystorage.blob.core.windows.net/profile-avatars/f7fd4b40-caf4-4567-b889-1619aad14341/dan-128x.png";
 
             _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
-            _mockAvatarRepo.Setup(x => x.Fetch(It.IsAny<string>())).Returns(url);
+            _mockAvatarRepo.Setup(x => x.FetchBlobUrl(It.IsAny<string>())).Returns(url);
 
             // act
-            IActionResult result = _controller.FetchAvatar();
+            IActionResult result = _controller.FetchAvatarUrl();
             var standardResponse = (StandardResponseObjectResult)result;
             var apiResponse = (ApiResponse)standardResponse.Value;
 
@@ -89,7 +92,7 @@ namespace UserService.Tests.Controllers
             Assert.AreEqual(url, apiResponse.Value);
 
             _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
-            _mockAvatarRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Once);
+            _mockAvatarRepo.Verify(x => x.FetchBlobUrl(It.IsAny<string>()), Times.Once);
         }
 
         [TestMethod]
@@ -110,7 +113,7 @@ namespace UserService.Tests.Controllers
             _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
            
             // act
-            IActionResult result = _controller.FetchAvatar();
+            IActionResult result = _controller.FetchAvatarUrl();
             var standardResponse = (StandardResponseObjectResult)result;
             var apiResponse = (ApiResponse)standardResponse.Value;
 
@@ -123,7 +126,7 @@ namespace UserService.Tests.Controllers
             Assert.AreEqual(null, apiResponse.Value);
 
             _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
-            _mockAvatarRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Never);
+            _mockAvatarRepo.Verify(x => x.FetchBlobUrl(It.IsAny<string>()), Times.Never);
         }
 
         [TestMethod]
@@ -143,10 +146,10 @@ namespace UserService.Tests.Controllers
             string url = String.Empty;
 
             _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
-            _mockAvatarRepo.Setup(x => x.Fetch(It.IsAny<string>())).Returns(url);
+            _mockAvatarRepo.Setup(x => x.FetchBlobUrl(It.IsAny<string>())).Returns(url);
 
             // act
-            IActionResult result = _controller.FetchAvatar();
+            IActionResult result = _controller.FetchAvatarUrl();
             var standardResponse = (StandardResponseObjectResult)result;
             var apiResponse = (ApiResponse)standardResponse.Value;
 
@@ -159,7 +162,7 @@ namespace UserService.Tests.Controllers
             Assert.AreEqual(null, apiResponse.Value);
 
             _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
-            _mockAvatarRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Once);
+            _mockAvatarRepo.Verify(x => x.FetchBlobUrl(It.IsAny<string>()), Times.Once);
         }
     }
 }

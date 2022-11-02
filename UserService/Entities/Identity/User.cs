@@ -14,5 +14,6 @@ namespace UserService.Entities.Identity
         public string Role { get; set; } = "basic";
         public bool IsDeleted { get; set; } = false;
         public bool IsLocked { get; set; } = false;
+        public DateTime? DateUpdated { get; set; }
     }       
 }
