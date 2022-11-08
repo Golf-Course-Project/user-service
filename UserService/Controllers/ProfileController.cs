@@ -10,6 +10,7 @@ using UserService.Helpers;
 using UserService.Repos;
 using UserService.ViewModels.Internal;
 using UserService.Entities.Identity;
+using System.IO;
 
 namespace UserService.Controllers
 {
@@ -34,7 +35,7 @@ namespace UserService.Controllers
         [HttpGet]
         [Route("avatar")]
         [AllowAnonymous]
-        public IActionResult FetchAvatarUrl()
+        public IActionResult FetchAvatar()
         {
             ApiResponse response = new ApiResponse() 
             { 
@@ -73,7 +74,7 @@ namespace UserService.Controllers
 
         [HttpPost]
         [Route("avatar")]
-        public IActionResult PostAvatar()
+        public IActionResult PostAvatar([FromForm] IFormFile file)
         {
             ApiResponse response = new ApiResponse()
             {
@@ -89,6 +90,14 @@ namespace UserService.Controllers
             //if token is empty then something went wrong, return error
             if (authResponse.Success == false) return new StandardResponseObjectResult(response, StatusCodes.Status401Unauthorized);
             UserTokenValue userTokenValue = (UserTokenValue)authResponse.Value;
+
+            string name = file.Name;
+
+            // https://www.c-sharpcorner.com/article/uploading-files-with-react-js-and-net/
+            using (var memoryStream = new MemoryStream())
+            {
+                file.CopyTo(memoryStream);
+            }
 
             User user = _identityRepo.Fetch(userTokenValue.UserId);
 
