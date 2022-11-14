@@ -20,6 +20,7 @@ using Newtonsoft.Json.Linq;
 using UserService.Entities.Identity;
 using UserService.Enums;
 using UserService.Repos.Identity;
+using System.IO;
 
 namespace UserService.Tests.Controllers
 {
@@ -60,6 +61,23 @@ namespace UserService.Tests.Controllers
             _controller.ControllerContext = _controllerContext;
         }
 
+        private Mock<IFormFile> GetMockFile()
+        {
+            var mockFile = new Mock<IFormFile>();
+            var conent = "Hello world from fake file";
+            var fileName = "test.png";
+            var ms = new MemoryStream();
+            var sw = new StreamWriter(ms);
+            sw.Write(conent);
+            sw.Flush();
+            ms.Position = 0;
+            mockFile.Setup(x => x.OpenReadStream()).Returns(ms);
+            mockFile.Setup(x => x.FileName).Returns(fileName);
+            mockFile.Setup(x => x.Length).Returns(ms.Length);
+
+            return mockFile;
+        }
+
         [TestMethod]
         [TestCategory("Controllers")]
         [Priority(0)]
@@ -98,7 +116,7 @@ namespace UserService.Tests.Controllers
         [TestMethod]
         [TestCategory("Controllers")]
         [Priority(0)]
-        public void FetchAvatar_FailedUath()
+        public void FetchAvatar_FailedAuth()
         {
             // arrange
             ApiResponse validateTokenResponse = new ApiResponse()
@@ -181,16 +199,18 @@ namespace UserService.Tests.Controllers
 
             User user = new User() { Id = _userId };
 
+            Mock<IFormFile> mockFile = this.GetMockFile();
+
             string url = "https://alystorage.blob.core.windows.net/profile-avatars/f7fd4b40-caf4-4567-b889-1619aad14341/dan-128x.png";
 
             _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
             _mockIdentityRepo.Setup(x => x.Fetch(It.IsAny<String>())).Returns(user);
-            _mockAvatarRepo.Setup(x => x.StoreBlob(_userId)).Returns(url);
+            _mockAvatarRepo.Setup(x => x.StoreBlob(_userId, It.IsAny<String>(), It.IsAny<MemoryStream>())).Returns(url);
             _mockHelper.Setup(x => x.GetDateTime).Returns(DateTime.Now);
             _mockIdentityRepo.Setup(x => x.SaveChanges()).Returns(1);
 
             // act
-            IActionResult result = _controller.PostAvatar();
+            IActionResult result = _controller.PostAvatar(mockFile.Object);
             var standardResponse = (StandardResponseObjectResult)result;
             var apiResponse = (ApiResponse)standardResponse.Value;
 
@@ -203,10 +223,46 @@ namespace UserService.Tests.Controllers
 
             _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
             _mockIdentityRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Once());
-            _mockAvatarRepo.Verify(x => x.StoreBlob(It.IsAny<string>()), Times.Once());
+            _mockAvatarRepo.Verify(x => x.StoreBlob(It.IsAny<string>(), It.IsAny<String>(), It.IsAny<MemoryStream>()), Times.Once());
             _mockHelper.Verify(x => x.GetDateTime, Times.Once());
             _mockIdentityRepo.Verify(x => x.Update(user, "Avatar_Url, DateUpdated"), Times.Once());
             _mockIdentityRepo.Verify(x => x.SaveChanges(), Times.Once());
+        }
+
+        [TestMethod]
+        [TestCategory("Controllers")]
+        [Priority(0)]
+        public void PostAvatar_FailedAuth()
+        {
+            // arrange
+            ApiResponse validateTokenResponse = new ApiResponse()
+            {
+                Success = false,
+                MessageCode = ApiMessageCodes.AuthFailed,
+                Value = null
+            };
+
+            Mock<IFormFile> mockFile = this.GetMockFile();
+            _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
+           
+            // act
+            IActionResult result = _controller.PostAvatar(mockFile.Object);
+            var standardResponse = (StandardResponseObjectResult)result;
+            var apiResponse = (ApiResponse)standardResponse.Value;
+
+            // assert
+            Assert.IsInstanceOfType(result, typeof(IActionResult), "'result' type must be of IActionResult");
+            Assert.AreEqual(StatusCodes.Status401Unauthorized, standardResponse.StatusCode);
+            Assert.IsFalse(apiResponse.Success);
+            Assert.AreEqual("", apiResponse.Message);
+            Assert.AreEqual(ApiMessageCodes.AuthFailed, apiResponse.MessageCode);
+
+            _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Never());
+            _mockAvatarRepo.Verify(x => x.StoreBlob(It.IsAny<string>(), It.IsAny<String>(), It.IsAny<MemoryStream>()), Times.Never());
+            _mockHelper.Verify(x => x.GetDateTime, Times.Never());
+            _mockIdentityRepo.Verify(x => x.Update(It.IsAny<User>(), "Avatar_Url, DateUpdated"), Times.Never());
+            _mockIdentityRepo.Verify(x => x.SaveChanges(), Times.Never());
         }
     }
 }

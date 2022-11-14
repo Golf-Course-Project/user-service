@@ -91,26 +91,25 @@ namespace UserService.Controllers
             if (authResponse.Success == false) return new StandardResponseObjectResult(response, StatusCodes.Status401Unauthorized);
             UserTokenValue userTokenValue = (UserTokenValue)authResponse.Value;
 
-            string name = file.Name;
-
-            // https://www.c-sharpcorner.com/article/uploading-files-with-react-js-and-net/
-            using (var memoryStream = new MemoryStream())
-            {
-                file.CopyTo(memoryStream);
-            }
-
             User user = _identityRepo.Fetch(userTokenValue.UserId);
 
             // make sure we have a user object
             if (user == null)
             {
-                response.MessageCode= ApiMessageCodes.NotFound;
+                response.MessageCode = ApiMessageCodes.NotFound;
                 response.Message = "User not found";
 
                 return new StandardResponseObjectResult(response, StatusCodes.Status200OK);
             }
-            
-            string avatar_url = _avatarRepo.StoreBlob(userTokenValue.UserId.ToLower());
+
+            string avatar_url = "";
+
+            // https://www.c-sharpcorner.com/article/uploading-files-with-react-js-and-net/
+            using (var memoryStream = new MemoryStream())
+            {
+                file.CopyTo(memoryStream);
+                avatar_url = _avatarRepo.StoreBlob(userTokenValue.UserId.ToLower(), file.FileName, memoryStream);
+            }               
 
             // did we get a response after storing blob?
             if (string.IsNullOrEmpty(avatar_url))

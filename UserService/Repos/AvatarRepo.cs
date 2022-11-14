@@ -46,17 +46,16 @@ namespace UserService.Repos
            return _identityRepo.Fetch(id).Avatar_Url;
         }
 
-        public string StoreBlob(string id)
+        public string StoreBlob(string id, string fileName, MemoryStream memoryStream)
         {
-            string filePath = @"C:/temp/dan-128.png";
-
+            //string filePath = @"C:/temp/dan-128.png";
             BlobContainerClient container = new BlobContainerClient(_storageConnectionString, _storageContainerName);
             container.CreateIfNotExists();
 
-            BlobClient blob = container.GetBlobClient($"{id}/dan-128.png");
+            BlobClient blob = container.GetBlobClient($"{id}/{fileName}");
 
             blob.DeleteIfExists(Azure.Storage.Blobs.Models.DeleteSnapshotsOption.IncludeSnapshots);
-            blob.Upload(filePath);
+            blob.Upload(memoryStream);
 
             BlobProperties props = blob.GetProperties();
 
@@ -95,7 +94,7 @@ namespace UserService.Repos
     public interface IAvatarRepo
     {
         string FetchBlobUrl(string id);        
-        string StoreBlob(string id);    
+        string StoreBlob(string id, string fileName, MemoryStream memoryStream);    
         void Delete(string id);
     }
 }
