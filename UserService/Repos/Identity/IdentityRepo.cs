@@ -42,6 +42,22 @@ namespace UserService.Repos.Identity
             return item;
         }
 
+        public User FetchByEmail(string email)
+        {
+            User item;
+
+            try
+            {
+                item = _dbContext.Users.Where(x => x.Email == email).First<User>();
+            }
+            catch (InvalidOperationException)
+            {
+                item = null;
+            }
+
+            return item;
+        }
+
 
         public void Update(User user, string fields)
         {
@@ -115,6 +131,7 @@ namespace UserService.Repos.Identity
     public interface IIdentityRepo
     {
         User Fetch(string id);
+        User FetchByEmail(string email);
         void Update(User user, string fields);
         int SaveChanges();
         ValidateTokenResponse ValidateJwt(string jwt);   

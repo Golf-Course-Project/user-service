@@ -21,6 +21,7 @@ using UserService.Entities.Identity;
 using UserService.Enums;
 using UserService.Repos.Identity;
 using System.IO;
+using UserService.ViewModels.Identity;
 
 namespace UserService.Tests.Controllers
 {
@@ -81,7 +82,7 @@ namespace UserService.Tests.Controllers
         [TestMethod]
         [TestCategory("Controllers")]
         [Priority(0)]
-        public void FetchAvatar_Success()
+        public void FetchProfile_Success()
         {
             // arrange
             ApiResponse validateTokenResponse = new ApiResponse() { 
@@ -90,14 +91,21 @@ namespace UserService.Tests.Controllers
                 MessageCode = ApiMessageCodes.Success, 
                 Value = new UserTokenValue { Token = _token, UserId = _userId } 
             };
-
-            string url = "https://alystorage.blob.core.windows.net/profile-avatars/f7fd4b40-caf4-4567-b889-1619aad14341/dan-128x.png";
+          
+            User user = new User()
+            {
+                Id = _userId,
+                Name = "Cosmo Kramer",
+                Email = "cosmo@go.com",
+                Avatar_Url = "https://alystorage.blob.core.windows.net/profile-avatars/f7fd4b40-caf4-4567-b889-1619aad14341/dan-128x.png",
+                IsLocked = false,
+            };
 
             _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
-            _mockAvatarRepo.Setup(x => x.FetchBlobUrl(It.IsAny<string>())).Returns(url);
+            _mockIdentityRepo.Setup(x => x.Fetch(_userId)).Returns(user);
 
             // act
-            IActionResult result = _controller.FetchAvatar();
+            IActionResult result = _controller.Fetch();
             var standardResponse = (StandardResponseObjectResult)result;
             var apiResponse = (ApiResponse)standardResponse.Value;
 
@@ -107,16 +115,50 @@ namespace UserService.Tests.Controllers
             Assert.IsTrue(apiResponse.Success);
             Assert.AreEqual("Success", apiResponse.Message);
             Assert.AreEqual(ApiMessageCodes.Success, apiResponse.MessageCode);
-            Assert.AreEqual(url, apiResponse.Value);
-
+           
             _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
-            _mockAvatarRepo.Verify(x => x.FetchBlobUrl(It.IsAny<string>()), Times.Once);
+            _mockIdentityRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Once());
         }
 
         [TestMethod]
         [TestCategory("Controllers")]
         [Priority(0)]
-        public void FetchAvatar_FailedAuth()
+        public void FetchProfile_UserNotFound()
+        {
+            // arrange
+            ApiResponse validateTokenResponse = new ApiResponse()
+            {
+                Success = true,
+                Message = "Success",
+                MessageCode = ApiMessageCodes.Success,
+                Value = new UserTokenValue { Token = _token, UserId = _userId }
+            };
+
+            User user = null;
+
+            _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
+            _mockIdentityRepo.Setup(x => x.Fetch(_userId)).Returns(user);
+
+            // act
+            IActionResult result = _controller.Fetch();
+            var standardResponse = (StandardResponseObjectResult)result;
+            var apiResponse = (ApiResponse)standardResponse.Value;
+
+            // assert
+            Assert.IsInstanceOfType(result, typeof(IActionResult), "'result' type must be of IActionResult");
+            Assert.AreEqual(StatusCodes.Status200OK, standardResponse.StatusCode);
+            Assert.IsFalse(apiResponse.Success);
+            Assert.AreEqual("User profile not found", apiResponse.Message);
+            Assert.AreEqual(ApiMessageCodes.NotFound, apiResponse.MessageCode);
+
+            _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Once());
+        }
+
+        [TestMethod]
+        [TestCategory("Controllers")]
+        [Priority(0)]
+        public void FetchProfile_FailedAuth()
         {
             // arrange
             ApiResponse validateTokenResponse = new ApiResponse()
@@ -124,14 +166,12 @@ namespace UserService.Tests.Controllers
                 Success = false,                
                 MessageCode = ApiMessageCodes.AuthFailed,
                 Value = null
-            };
-
-            string url = String.Empty;
+            };          
 
             _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
            
             // act
-            IActionResult result = _controller.FetchAvatar();
+            IActionResult result = _controller.Fetch();
             var standardResponse = (StandardResponseObjectResult)result;
             var apiResponse = (ApiResponse)standardResponse.Value;
 
@@ -144,13 +184,13 @@ namespace UserService.Tests.Controllers
             Assert.AreEqual(null, apiResponse.Value);
 
             _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
-            _mockAvatarRepo.Verify(x => x.FetchBlobUrl(It.IsAny<string>()), Times.Never);
+            _mockIdentityRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Never);
         }
 
         [TestMethod]
         [TestCategory("Controllers")]
         [Priority(0)]
-        public void FetchAvatar_EmptyAvatarUrl()
+        public void PatchProfile_Success()
         {
             // arrange
             ApiResponse validateTokenResponse = new ApiResponse()
@@ -161,13 +201,115 @@ namespace UserService.Tests.Controllers
                 Value = new UserTokenValue { Token = _token, UserId = _userId }
             };
 
-            string url = String.Empty;
+            User user = new User()
+            {
+                Id = _userId,
+                Name = "Cosmo Kramer",
+                Email = "cosmo@go.com",
+                Avatar_Url = "https://alystorage.blob.core.windows.net/profile-avatars/f7fd4b40-caf4-4567-b889-1619aad14341/dan-128x.png",
+                IsLocked = false,
+            };
+
+            User userByEmail = null;
+
+            ProfilePatch body = new ProfilePatch()
+            {
+                Name = "Buster Douglas",
+                Email = "goose@hotmail.com"
+            };
 
             _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
-            _mockAvatarRepo.Setup(x => x.FetchBlobUrl(It.IsAny<string>())).Returns(url);
+            _mockIdentityRepo.Setup(x => x.Fetch(_userId)).Returns(user);
+            _mockIdentityRepo.Setup(x => x.FetchByEmail(It.IsAny<string>())).Returns(userByEmail);
+            _mockIdentityRepo.Setup(x => x.SaveChanges()).Returns(1);
 
             // act
-            IActionResult result = _controller.FetchAvatar();
+            IActionResult result = _controller.PatchProfile(body);
+            var standardResponse = (StandardResponseObjectResult)result;
+            var apiResponse = (ApiResponse)standardResponse.Value;
+
+            // assert
+            Assert.IsInstanceOfType(result, typeof(IActionResult), "'result' type must be of IActionResult");
+            Assert.AreEqual(StatusCodes.Status202Accepted, standardResponse.StatusCode);
+            Assert.IsTrue(apiResponse.Success);
+            Assert.AreEqual("Success", apiResponse.Message);
+            Assert.AreEqual(ApiMessageCodes.Success, apiResponse.MessageCode);
+
+            _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.FetchByEmail(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.Update(It.IsAny<User>(), "Name,Email"), Times.Once());
+            _mockIdentityRepo.Verify(x => x.SaveChanges(), Times.Once());
+        }
+
+        [TestMethod]
+        [TestCategory("Controllers")]
+        [Priority(0)]
+        public void PatchProfile_FailedAuth()
+        {            
+            // arrange
+            ApiResponse validateTokenResponse = new ApiResponse()
+            {
+                Success = false,
+                MessageCode = ApiMessageCodes.AuthFailed,
+                Value = null
+            };          
+
+            ProfilePatch body = new ProfilePatch()
+            {
+                Name = "Buster Douglas",
+                Email = "goose@hotmail.com"
+            };
+
+            _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
+           
+            // act
+            IActionResult result = _controller.PatchProfile(body);
+            var standardResponse = (StandardResponseObjectResult)result;
+            var apiResponse = (ApiResponse)standardResponse.Value;
+
+            // assert
+            Assert.IsInstanceOfType(result, typeof(IActionResult), "'result' type must be of IActionResult");
+            Assert.AreEqual(StatusCodes.Status401Unauthorized, standardResponse.StatusCode);
+            Assert.IsFalse(apiResponse.Success);
+            Assert.AreEqual(String.Empty, apiResponse.Message);
+            Assert.AreEqual(ApiMessageCodes.AuthFailed, apiResponse.MessageCode);
+            Assert.AreEqual(null, apiResponse.Value);
+
+            _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Never());
+            _mockIdentityRepo.Verify(x => x.FetchByEmail(It.IsAny<string>()), Times.Never());
+            _mockIdentityRepo.Verify(x => x.Update(It.IsAny<User>(), "Name,Email"), Times.Never());
+            _mockIdentityRepo.Verify(x => x.SaveChanges(), Times.Never());
+        }
+
+        [TestMethod]
+        [TestCategory("Controllers")]
+        [Priority(0)]
+        public void PatchProfile_UserNotFound()
+        {
+            // arrange
+            ApiResponse validateTokenResponse = new ApiResponse()
+            {
+                Success = true,
+                Message = "Success",
+                MessageCode = ApiMessageCodes.Success,
+                Value = new UserTokenValue { Token = _token, UserId = _userId }
+            };
+
+            User user = null;
+          
+            ProfilePatch body = new ProfilePatch()
+            {
+                Name = "Buster Douglas",
+                Email = "goose@hotmail.com"
+            };
+
+            _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
+            _mockIdentityRepo.Setup(x => x.Fetch(_userId)).Returns(user);           
+
+            // act
+            IActionResult result = _controller.PatchProfile(body);
             var standardResponse = (StandardResponseObjectResult)result;
             var apiResponse = (ApiResponse)standardResponse.Value;
 
@@ -175,12 +317,127 @@ namespace UserService.Tests.Controllers
             Assert.IsInstanceOfType(result, typeof(IActionResult), "'result' type must be of IActionResult");
             Assert.AreEqual(StatusCodes.Status200OK, standardResponse.StatusCode);
             Assert.IsFalse(apiResponse.Success);
-            Assert.AreEqual("Avatar url not found", apiResponse.Message);
+            Assert.AreEqual("User profile not found", apiResponse.Message);
             Assert.AreEqual(ApiMessageCodes.NotFound, apiResponse.MessageCode);
-            Assert.AreEqual(null, apiResponse.Value);
 
             _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
-            _mockAvatarRepo.Verify(x => x.FetchBlobUrl(It.IsAny<string>()), Times.Once);
+            _mockIdentityRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.FetchByEmail(It.IsAny<string>()), Times.Never());
+            _mockIdentityRepo.Verify(x => x.Update(It.IsAny<User>(), "Name,Email"), Times.Never());
+            _mockIdentityRepo.Verify(x => x.SaveChanges(), Times.Never());
+        }
+
+        [TestMethod]
+        [TestCategory("Controllers")]
+        [Priority(0)]
+        public void PatchProfile_EmailAlreadyInUse()
+        {
+            // arrange
+            ApiResponse validateTokenResponse = new ApiResponse()
+            {
+                Success = true,
+                Message = "Success",
+                MessageCode = ApiMessageCodes.Success,
+                Value = new UserTokenValue { Token = _token, UserId = _userId }
+            };
+
+            User user = new User()
+            {
+                Id = _userId,
+                Name = "Cosmo Kramer",
+                Email = "cosmo@go.com",
+                Avatar_Url = "https://alystorage.blob.core.windows.net/profile-avatars/f7fd4b40-caf4-4567-b889-1619aad14341/dan-128x.png",
+                IsLocked = false,
+            };
+
+            User userByEmail = new User
+            {
+                Id = "b13b74c4-8f2b-45e6-b486-56c95ed3c669",
+                Email = "someting@yahoo.com"
+            };
+
+            ProfilePatch body = new ProfilePatch()
+            {
+                Name = "Buster Douglas",
+                Email = "goose@hotmail.com"
+            };
+
+            _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
+            _mockIdentityRepo.Setup(x => x.Fetch(_userId)).Returns(user);
+            _mockIdentityRepo.Setup(x => x.FetchByEmail(It.IsAny<string>())).Returns(userByEmail);
+         
+            // act
+            IActionResult result = _controller.PatchProfile(body);
+            var standardResponse = (StandardResponseObjectResult)result;
+            var apiResponse = (ApiResponse)standardResponse.Value;
+
+            // assert
+            Assert.IsInstanceOfType(result, typeof(IActionResult), "'result' type must be of IActionResult");
+            Assert.AreEqual(StatusCodes.Status200OK, standardResponse.StatusCode);
+            Assert.IsFalse(apiResponse.Success);
+            Assert.AreEqual("Email provided is in use by another user", apiResponse.Message);
+            Assert.AreEqual(ApiMessageCodes.AlreadyExists, apiResponse.MessageCode);
+
+            _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.FetchByEmail(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.Update(It.IsAny<User>(), "Name,Email"), Times.Never());
+            _mockIdentityRepo.Verify(x => x.SaveChanges(), Times.Never());
+        }
+
+        [TestMethod]
+        [TestCategory("Controllers")]
+        [Priority(0)]
+        public void PatchProfile_SaveChangedResultZero()
+        {
+            // arrange
+            ApiResponse validateTokenResponse = new ApiResponse()
+            {
+                Success = true,
+                Message = "Success",
+                MessageCode = ApiMessageCodes.Success,
+                Value = new UserTokenValue { Token = _token, UserId = _userId }
+            };
+
+            User user = new User()
+            {
+                Id = _userId,
+                Name = "Cosmo Kramer",
+                Email = "cosmo@go.com",
+                Avatar_Url = "https://alystorage.blob.core.windows.net/profile-avatars/f7fd4b40-caf4-4567-b889-1619aad14341/dan-128x.png",
+                IsLocked = false,
+            };
+
+            User userByEmail = null;
+
+            ProfilePatch body = new ProfilePatch()
+            {
+                Name = "Buster Douglas",
+                Email = "goose@hotmail.com"
+            };
+
+            _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
+            _mockIdentityRepo.Setup(x => x.Fetch(_userId)).Returns(user);
+            _mockIdentityRepo.Setup(x => x.FetchByEmail(It.IsAny<string>())).Returns(userByEmail);
+            _mockIdentityRepo.Setup(x => x.SaveChanges()).Returns(0);
+
+            // act
+            IActionResult result = _controller.PatchProfile(body);
+            var standardResponse = (StandardResponseObjectResult)result;
+            var apiResponse = (ApiResponse)standardResponse.Value;
+
+            // assert
+            Assert.IsInstanceOfType(result, typeof(IActionResult), "'result' type must be of IActionResult");
+            Assert.AreEqual(StatusCodes.Status500InternalServerError, standardResponse.StatusCode);
+            Assert.IsFalse(apiResponse.Success);
+            Assert.AreEqual("Error saving changes", apiResponse.Message);
+            Assert.AreEqual(ApiMessageCodes.Failed, apiResponse.MessageCode);
+
+            _mockTokenAuthorization.Verify(x => x.ValidateToken(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.Fetch(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.FetchByEmail(It.IsAny<string>()), Times.Once());
+            _mockIdentityRepo.Verify(x => x.Update(It.IsAny<User>(), "Name,Email"), Times.Once());
+            _mockIdentityRepo.Verify(x => x.SaveChanges(), Times.Once());
         }
 
         [TestMethod]
