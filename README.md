@@ -1,2 +1,2 @@
 # myapp-userservice
-Service for manager user profile and settings
+Service to manage user profile and settings
