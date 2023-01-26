@@ -23,6 +23,7 @@ using UserService.ViewModels.Identity;
 using System.Threading.Tasks;
 using System.IdentityModel.Tokens.Jwt;
 using UserService.Repos.Identity;
+using Azure;
 
 namespace UserService.Repos
 {
@@ -48,13 +49,19 @@ namespace UserService.Repos
 
         public string StoreBlob(string id, string fileName, MemoryStream memoryStream)
         {
-            //string filePath = @"C:/temp/dan-128.png";
             BlobContainerClient container = new BlobContainerClient(_storageConnectionString, _storageContainerName);
             container.CreateIfNotExists();
 
-            BlobClient blob = container.GetBlobClient($"{id}/{fileName}");
+            // delete blobs that already exist for id
+            //this.DeleteBlobs(container, id).RunSynchronously();           
 
-            blob.DeleteIfExists(Azure.Storage.Blobs.Models.DeleteSnapshotsOption.IncludeSnapshots);
+            container.DeleteBlobIfExists($"{id}/{fileName.ToLower()}", DeleteSnapshotsOption.IncludeSnapshots);
+
+            // set blob to file and folder
+            BlobClient blob = container.GetBlobClient($"{id}/{fileName.ToLower()}");
+            
+            // upload memery string to blob
+            memoryStream.Position = 0;
             blob.Upload(memoryStream);
 
             BlobProperties props = blob.GetProperties();
@@ -62,6 +69,19 @@ namespace UserService.Repos
             if (props.ContentLength > 0) return blob.Uri.ToString();
 
             return null;          
+        }
+
+        private async Task DeleteBlobs(BlobContainerClient container, string id)
+        {
+            var resultSegment = container.GetBlobsAsync(BlobTraits.None, BlobStates.None, $"{id}/").AsPages(default, 100);
+
+            await foreach (Page<BlobItem> blobPage in resultSegment)
+            {
+                foreach (BlobItem blobItem in blobPage.Values)
+                {
+                    container.DeleteBlob(blobItem.Name, DeleteSnapshotsOption.IncludeSnapshots);
+                }               
+            }
         }
 
         public void Delete(string id)

@@ -224,7 +224,7 @@ namespace UserService.Tests.Controllers
             _mockIdentityRepo.Setup(x => x.SaveChanges()).Returns(1);
 
             // act
-            IActionResult result = _controller.PatchProfile(body);
+            IActionResult result = _controller.Update(body);
             var standardResponse = (StandardResponseObjectResult)result;
             var apiResponse = (ApiResponse)standardResponse.Value;
 
@@ -264,7 +264,7 @@ namespace UserService.Tests.Controllers
             _mockTokenAuthorization.Setup(x => x.ValidateToken(It.IsAny<string>())).Returns(validateTokenResponse);
            
             // act
-            IActionResult result = _controller.PatchProfile(body);
+            IActionResult result = _controller.Update(body);
             var standardResponse = (StandardResponseObjectResult)result;
             var apiResponse = (ApiResponse)standardResponse.Value;
 
@@ -309,7 +309,7 @@ namespace UserService.Tests.Controllers
             _mockIdentityRepo.Setup(x => x.Fetch(_userId)).Returns(user);           
 
             // act
-            IActionResult result = _controller.PatchProfile(body);
+            IActionResult result = _controller.Update(body);
             var standardResponse = (StandardResponseObjectResult)result;
             var apiResponse = (ApiResponse)standardResponse.Value;
 
@@ -367,7 +367,7 @@ namespace UserService.Tests.Controllers
             _mockIdentityRepo.Setup(x => x.FetchByEmail(It.IsAny<string>())).Returns(userByEmail);
          
             // act
-            IActionResult result = _controller.PatchProfile(body);
+            IActionResult result = _controller.Update(body);
             var standardResponse = (StandardResponseObjectResult)result;
             var apiResponse = (ApiResponse)standardResponse.Value;
 
@@ -422,7 +422,7 @@ namespace UserService.Tests.Controllers
             _mockIdentityRepo.Setup(x => x.SaveChanges()).Returns(0);
 
             // act
-            IActionResult result = _controller.PatchProfile(body);
+            IActionResult result = _controller.Update(body);
             var standardResponse = (StandardResponseObjectResult)result;
             var apiResponse = (ApiResponse)standardResponse.Value;
 

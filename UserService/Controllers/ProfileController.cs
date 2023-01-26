@@ -82,15 +82,24 @@ namespace UserService.Controllers
             return new StandardResponseObjectResult(response, StatusCodes.Status200OK);
         }
 
-        [HttpPatch]
+        [HttpPut]
         [Route("me")]
-        public IActionResult PatchProfile([FromBody] ProfilePatch body)
+        public IActionResult Update([FromBody] ProfilePatch body)
         {
             ApiResponse response = new ApiResponse()
             {
                 Success = false,
                 MessageCode = ApiMessageCodes.AuthFailed
             };
+
+            // check for valid model 
+            if (!ModelState.IsValid)
+            {
+                response.MessageCode = ApiMessageCodes.InvalidModelState;
+                response.Message = "Invalid model state";
+
+                return new StandardResponseObjectResult(response, StatusCodes.Status200OK);
+            }
 
             string jwt = HttpContext.Request.Headers?["X-Authorization"].ToString();
 
@@ -165,7 +174,7 @@ namespace UserService.Controllers
                 Success = false,
                 MessageCode = ApiMessageCodes.AuthFailed
             };
-
+            
             string jwt = HttpContext.Request.Headers?["X-Authorization"].ToString();
 
             // go validate the x-authorization header value
@@ -185,15 +194,24 @@ namespace UserService.Controllers
 
                 return new StandardResponseObjectResult(response, StatusCodes.Status200OK);
             }
-
+            
             string avatar_url = "";
 
-            // https://www.c-sharpcorner.com/article/uploading-files-with-react-js-and-net/
-            using (var memoryStream = new MemoryStream())
+            try
             {
-                file.CopyTo(memoryStream);
-                avatar_url = _avatarRepo.StoreBlob(userTokenValue.UserId.ToLower(), file.FileName, memoryStream);
-            }               
+                // https://www.c-sharpcorner.com/article/uploading-files-with-react-js-and-net/
+                // https://stackoverflow.com/questions/54795740/access-to-fetch-at-from-origin-has-been-blocked-by-cors-policy-no-acce
+                using (MemoryStream memoryStream = new MemoryStream())
+                {           
+                    file.CopyTo(memoryStream);                   
+                    avatar_url = _avatarRepo.StoreBlob(userTokenValue.UserId.ToLower(), file.FileName, memoryStream);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new StandardResponseObjectResult("MemoryStream Exception: " + ex.Message, StatusCodes.Status500InternalServerError);
+            }
+
 
             // did we get a response after storing blob?
             if (string.IsNullOrEmpty(avatar_url))
@@ -204,15 +222,16 @@ namespace UserService.Controllers
                 return new StandardResponseObjectResult(response, StatusCodes.Status200OK);
             }
 
-            try 
-            { 
+            try
+            {
                 user.Avatar_Url = avatar_url;
                 user.DateUpdated = _helper.GetDateTime;
 
                 _identityRepo.Update(user, "Avatar_Url, DateUpdated");
                 int result = _identityRepo.SaveChanges();
 
-                if (result == 0) {
+                if (result == 0)
+                {
                     response.Message = "Error updating user";
                     response.MessageCode = ApiMessageCodes.Failed;
 
@@ -221,14 +240,14 @@ namespace UserService.Controllers
 
                 response.Message = "Success";
                 response.MessageCode = ApiMessageCodes.Updated;
-                response.Value = null;
+                response.Value = avatar_url;
                 response.Success = true;
 
                 return new StandardResponseObjectResult(response, StatusCodes.Status202Accepted);
             }
             catch (Exception ex)
             {
-                return new StandardResponseObjectResult("Exception: " + ex.Message, StatusCodes.Status500InternalServerError);
+                return new StandardResponseObjectResult("Update Profile Exception: " + ex.Message, StatusCodes.Status500InternalServerError);
             }
             finally
             {
