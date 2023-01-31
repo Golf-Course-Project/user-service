@@ -31,7 +31,7 @@ namespace UserService.Repos
     {        
         private IStandardHelper _standardHelper;
         private string _storageConnectionString;
-        private string _storageContainerName;
+        private string _storageBlobContainerName;
         private IIdentityRepo _identityRepo;
 
         public AvatarRepo(IIdentityRepo identityRepo, IStandardHelper standardHelper)
@@ -39,7 +39,7 @@ namespace UserService.Repos
             _identityRepo = identityRepo;
             _standardHelper = standardHelper;
             _storageConnectionString = _standardHelper.AppSettings.StorageConnectionString;
-            _storageContainerName = "profile-avatars";           
+            _storageBlobContainerName = _standardHelper.AppSettings.AvatarBlobContainerName;           
         }
 
         public string FetchBlobUrl(string id)
@@ -49,12 +49,8 @@ namespace UserService.Repos
 
         public string StoreBlob(string id, string fileName, MemoryStream memoryStream)
         {
-            BlobContainerClient container = new BlobContainerClient(_storageConnectionString, _storageContainerName);
-            container.CreateIfNotExists();
-
-            // delete blobs that already exist for id
-            //this.DeleteBlobs(container, id).RunSynchronously();           
-
+            BlobContainerClient container = new BlobContainerClient(_storageConnectionString, _storageBlobContainerName);
+            container.CreateIfNotExists();            
             container.DeleteBlobIfExists($"{id}/{fileName.ToLower()}", DeleteSnapshotsOption.IncludeSnapshots);
 
             // set blob to file and folder
@@ -66,21 +62,28 @@ namespace UserService.Repos
 
             BlobProperties props = blob.GetProperties();
 
-            if (props.ContentLength > 0) return blob.Uri.ToString();
+            container = null;
+            memoryStream = null;
 
+            if (props.ContentLength > 0) return blob.Uri.ToString();
+                        
             return null;          
         }
 
-        private async Task DeleteBlobs(BlobContainerClient container, string id)
+        public async Task DeleteBlobs(string id, string fileName)
         {
+            BlobContainerClient container = new BlobContainerClient(_storageConnectionString, _storageBlobContainerName);
+            
             var resultSegment = container.GetBlobsAsync(BlobTraits.None, BlobStates.None, $"{id}/").AsPages(default, 100);
 
+            // loop through each blob list
             await foreach (Page<BlobItem> blobPage in resultSegment)
             {
                 foreach (BlobItem blobItem in blobPage.Values)
-                {
-                    container.DeleteBlob(blobItem.Name, DeleteSnapshotsOption.IncludeSnapshots);
-                }               
+                { 
+                    // check to make sure the file we are deleting is not match the fileName passed
+                    if (! blobItem.Name.ToLower().Equals($"{id}/{fileName.ToLower()}")) container.DeleteBlobIfExists(blobItem.Name, DeleteSnapshotsOption.IncludeSnapshots);
+                }
             }
         }
 
@@ -116,5 +119,6 @@ namespace UserService.Repos
         string FetchBlobUrl(string id);        
         string StoreBlob(string id, string fileName, MemoryStream memoryStream);    
         void Delete(string id);
+        Task DeleteBlobs(string id, string fileName);
     }
 }

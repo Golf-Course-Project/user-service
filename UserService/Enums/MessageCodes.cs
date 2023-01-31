@@ -20,6 +20,7 @@
         InvalidParamValue = 601,
         Throttled = 602,
         FailedToSendMessage = 603,
+        PartialFailure = 604,
         ExceptionThrown = 501,
         AuthFailed = 500
     }

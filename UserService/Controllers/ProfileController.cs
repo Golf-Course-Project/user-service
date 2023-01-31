@@ -199,17 +199,15 @@ namespace UserService.Controllers
 
             try
             {
-                // https://www.c-sharpcorner.com/article/uploading-files-with-react-js-and-net/
-                // https://stackoverflow.com/questions/54795740/access-to-fetch-at-from-origin-has-been-blocked-by-cors-policy-no-acce
                 using (MemoryStream memoryStream = new MemoryStream())
                 {           
-                    file.CopyTo(memoryStream);                   
-                    avatar_url = _avatarRepo.StoreBlob(userTokenValue.UserId.ToLower(), file.FileName, memoryStream);
+                    file.CopyTo(memoryStream);
+                    avatar_url = _avatarRepo.StoreBlob(userTokenValue.UserId.ToLower(), file.FileName.Trim().ToLower(), memoryStream); ;
                 }
             }
             catch (Exception ex)
             {
-                return new StandardResponseObjectResult("MemoryStream Exception: " + ex.Message, StatusCodes.Status500InternalServerError);
+                return new StandardResponseObjectResult("MemoryStream exception: " + ex.Message, StatusCodes.Status500InternalServerError);
             }
 
 
@@ -222,6 +220,7 @@ namespace UserService.Controllers
                 return new StandardResponseObjectResult(response, StatusCodes.Status200OK);
             }
 
+            // update profile record with new blob url
             try
             {
                 user.Avatar_Url = avatar_url;
@@ -241,18 +240,37 @@ namespace UserService.Controllers
                 response.Message = "Success";
                 response.MessageCode = ApiMessageCodes.Updated;
                 response.Value = avatar_url;
-                response.Success = true;
-
-                return new StandardResponseObjectResult(response, StatusCodes.Status202Accepted);
+                response.Success = true;                
             }
             catch (Exception ex)
             {
-                return new StandardResponseObjectResult("Update Profile Exception: " + ex.Message, StatusCodes.Status500InternalServerError);
+                return new StandardResponseObjectResult("Update profile exception: " + ex.Message, StatusCodes.Status500InternalServerError);
             }
             finally
             {
                 user = null;
             }
+
+            // blob upload was success
+            // update profile succes
+            // now go clean up old blob files (delete them) that may be laying around
+            if (response.Success)
+            {
+                try
+                {
+                    this._avatarRepo.DeleteBlobs(userTokenValue.UserId.ToLower(), file.FileName.Trim().ToLower());
+                }
+                catch (Exception ex)
+                {
+                    response.Message = $"Delete blobs exception: {ex.Message}";
+                    response.MessageCode = ApiMessageCodes.PartialFailure;
+
+                    return new StandardResponseObjectResult(response, StatusCodes.Status202Accepted);
+                }
+                
+            }
+
+            return new StandardResponseObjectResult(response, StatusCodes.Status202Accepted);
         }
     }
 }
