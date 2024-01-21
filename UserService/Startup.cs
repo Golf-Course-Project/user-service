@@ -16,7 +16,7 @@ using UserService.Data;
 using UserService.Repos;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace IdentityService
+namespace UserService
 {
     public class Startup
     {
@@ -41,14 +41,14 @@ namespace IdentityService
             services.AddHttpContextAccessor();
 
             //api versioning service
-            services.AddApiVersioning();
+            //services.AddApiVersioning();
 
-            services.AddApiVersioning(config =>
-            {
-                config.DefaultApiVersion = new ApiVersion(1, 0);
-                config.AssumeDefaultVersionWhenUnspecified = true;
-                config.ReportApiVersions = true;
-            });
+            //services.AddApiVersioning(config =>
+            //{
+            //    config.DefaultApiVersion = new ApiVersion(1, 0);
+            //    config.AssumeDefaultVersionWhenUnspecified = true;
+            //    config.ReportApiVersions = true;
+            //});
 
             services.AddMemoryCache(); // Add this line for .NET 2.1
 
